@@ -1,12 +1,5 @@
 import pandas as pd
-# import numpy as np
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-# import warnings as wr
 from sklearn.preprocessing import StandardScaler
-
-
-# wr.filterwarnings('ignore')
 
 
 def read_data(addr):
