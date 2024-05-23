@@ -1,88 +1,107 @@
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler, LabelEncoder
+import numpy as np
+import re
+import matplotlib.pyplot as plt
 
 
-def read_data(addr):
-    # loading and reading dataset
-    return pd.read_csv(addr)
+def basic_data_inf():
+    global data_frame
+    print('First 5 rows:\n', data_frame.head())
+    column_names = data_frame.columns.tolist()  # column names as list
+    print('Data shape: ', data_frame.shape, 'Column names:\n', column_names)
 
+    # Data information
+    print('Data information: \n \n')
+    data_frame.info()
 
-def show_data_inf(df):
-    print(df.head())
-
-    # shape of the data
-    print(df.shape)
-
-    # data information
-    df.info()
-
-
-def describe_features(df):
-    # describing the data and print for each column
-    num_descript = df.describe()
-    # Summary statistics for categorical columns
-    cat_descript = df.describe(include=['object'])
+    print('Data description: \n \n')
+    # Describing the categorical data
+    cat_descript = data_frame.describe(include=['object'])
     print(cat_descript)
+
+    # Describing the data
+    num_descript = data_frame.describe()
     for i in range(0, 13, 2):
         print(num_descript.iloc[:, i:i+2])
 
 
-def show_null_unique_vals(df):
-    # check for missing values:
-    print('\nNull Values\n', df.isnull().sum(), sep='')
+def show_null_unique_vals():
+    global data_frame
+    # Check for missing values
+    print('\nNull Values for each column:\n', data_frame.isnull().sum(), sep='')
 
-    # checking duplicate values
-    print('\nUnique Values\n', df.nunique(), sep='')
-
-
-def drop_null_columns(df, column_names_list):
-    # Drop Null columns
-    df = df.drop(columns=column_names_list[-4:])
-
-    # Convert categorical data types
-    for i in range(0, 2):
-        uniques = df[column_names_list[i]].unique()
-        map_dict = dict(zip(uniques, range(len(uniques))))
-        df = df.replace({column_names_list[i]: map_dict})
-
-    return df
+    # Check for unique values
+    print('\nUnique Values for each column:\n', data_frame.nunique(), sep='')
 
 
-def convert_date(df, column_names_list):
-    df[column_names_list[2]] = pd.to_datetime(df[column_names_list[2]])
+def handle_converting_data():
+    global data_frame
+    # Drop Empty columns
+    data_frame.dropna(axis=1, how='all', inplace=True)
 
-    # Extract features from the timestamp
-    df['hour'] = df[column_names_list[2]].dt.hour
-    df['day_of_week'] = df[column_names_list[2]].dt.dayofweek
-    df['day_of_month'] = df[column_names_list[2]].dt.day
-    df['month'] = df[column_names_list[2]].dt.month
-    df['year'] = df[column_names_list[2]].dt.year
-    df = df.drop(columns=[column_names_list[2]])
-    return df
+    # Split categorical columns
+    non_numeric_cols = list(data_frame.select_dtypes(exclude=[np.number]).columns)
+
+    # Remove date time columns
+    for nn_col in non_numeric_cols:
+        pattern = r'^\d{1,2}/\d{1,2}/\d{4} \d{1,2}:\d{2}$'
+        date_time_str = data_frame[nn_col][0]     # check a sample of that column
+        if re.match(pattern, date_time_str):
+            data_frame.drop(columns=[nn_col], inplace=True)
+            non_numeric_cols.remove(nn_col)
+
+    # Remove categorical data if it is almost unique for each
+    for nn_col in non_numeric_cols:
+        unique_vals = list(data_frame[nn_col].unique())
+        if len(unique_vals) > 0.9*data_frame.shape[0]:
+            non_numeric_cols.remove(nn_col)
+            data_frame = data_frame.drop(columns=[nn_col])
+
+    handle_cat_vals(non_numeric_cols)
 
 
-def normalize_data(df):
-    column_names_list = df.columns.tolist()
-    features = df[column_names_list]
-    scaler = StandardScaler()
+def handle_cat_vals(categorical_cols):
+    for cat in categorical_cols:
+        # Label Encoding
+        label_encoder = LabelEncoder()
+        encode_label = cat + '_encoded'
+        data_frame[encode_label] = label_encoder.fit_transform(data_frame[cat])
+        data_frame.drop(columns=[cat], inplace=True)
+
+
+def normalize_data():
+    global data_frame
+    # Normalize columns based on min and max of each
+    column_names_list = data_frame.columns.tolist()
+    features = data_frame[column_names_list]
+    scaler = MinMaxScaler()
     scaled_features = scaler.fit_transform(features)
-    return scaled_features
+    data_frame = pd.DataFrame(scaled_features, columns=data_frame.columns)
+
+
+def plot_show():
+    global data_frame
+    # Distributions for numerical columns
+    data_frame.hist(bins=30, figsize=(20, 15))
+    plt.show()
 
 
 def perform_eda(path):
-    df = read_data(path)
-    # column to list
-    column_names = df.columns.tolist()
+    global data_frame
+    data_frame = pd.read_csv(path)
+    basic_data_inf()    # Get a basic information
+    show_null_unique_vals()
 
-    show_data_inf(df)
-    describe_features(df)
-    show_null_unique_vals(df)
-    df = drop_null_columns(df, column_names)
-    df = convert_date(df, column_names)
-    df = normalize_data(df)
+    # Remove null column , handle date time columns and encode categorical columns
+    handle_converting_data()
 
-    return df
+    # Normalize and convert data to numpy array
+    normalize_data()
+    plot_show()
+
+    return data_frame
 
 
 if __name__ == '__main__':
-    perform_eda('Live.csv')
+    data_frame = pd.DataFrame()

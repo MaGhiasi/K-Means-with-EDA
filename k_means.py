@@ -2,25 +2,22 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from eda import perform_eda
 
-
+# Get features after EDA
 features = perform_eda("Live.csv")
 
-# Range of K values to try
-k_values = range(1, 11)
+list_WCSS = []
+k_range = range(1, 11)
 
-# List to store the WCSS for each K
-wcss = []
-
-# Calculate WCSS for each K
-for k in k_values:
-    kmeans = KMeans(n_clusters=k, random_state=42)
+# k-means loop for different K
+for k in k_range:
+    kmeans = KMeans(n_clusters=k, random_state=69)
     kmeans.fit(features)
-    wcss.append(kmeans.inertia_)
+    list_WCSS.append(kmeans.inertia_)
 
-# Plot the elbow graph
+# Plot Elbow Method
 plt.figure(figsize=(10, 6))
-plt.plot(k_values, wcss, 'bo-')
-plt.title('Elbow Method For Optimal K')
-plt.xlabel('Number of clusters (K)')
+plt.plot(k_range, list_WCSS, 'b-')
+plt.title('The Elbow Method')
+plt.xlabel('Number of clusters')
 plt.ylabel('WCSS')
 plt.show()
